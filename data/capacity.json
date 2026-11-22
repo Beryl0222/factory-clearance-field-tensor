@@ -1,0 +1,17 @@
+{
+  "grid": [
+    8192,
+    6144
+  ],
+  "tile_hw": [
+    96,
+    64
+  ],
+  "spacing": [
+    6,
+    4
+  ],
+  "radius": 100,
+  "peak_scratch_bytes": 4194304,
+  "seed": 635
+}
