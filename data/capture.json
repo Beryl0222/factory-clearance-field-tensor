@@ -73,6 +73,36 @@
     "history": [
       1,
       2
+    ],
+    "probes": [
+      {
+        "id": "p-center",
+        "physical": [
+          3,
+          6
+        ]
+      },
+      {
+        "id": "p-offset",
+        "physical": [
+          4,
+          7
+        ]
+      },
+      {
+        "id": "p-boundary",
+        "physical": [
+          3,
+          7
+        ]
+      },
+      {
+        "id": "p-near",
+        "physical": [
+          2,
+          5
+        ]
+      }
     ]
   },
   "tensors": {
