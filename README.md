@@ -21,3 +21,51 @@ python -m unittest discover -s tests -v
 ```
 
 现有检查核对采集格式和所附数据的结构。
+
+## 距离场接口
+
+`gauge_distance` 包把上述约定做成可调用接口，实现细节与测试位于 `gauge_distance/` 与 `tests/`。
+
+```python
+from gauge_distance import load_capture
+
+capture = load_capture("data/capture.json")
+field = capture.field()                    # 默认每个 id 的最新瓦片版本
+cell = field.cell(2, 3)                    # 格点距离目标
+probe = field.probe(4, 7)                   # 定位点距离目标（用实际坐标）
+grid = field.features(capture.frame.box)    # 状态 / 值 / 见证数组
+```
+
+- **格点距离**：`cell(r, c)`、`region(box)`、`features(box)`、`arrays(box)`、
+  `iter_tiles(box)`、`write(box, target)`。距离取到最近已知异类格的格点中心，
+  平方距离以整数微米平方比较；等距时取坐标 ID（先行后列）更小者。
+- **四种状态**（`FieldStatus`）：
+  - `TRUSTED`：有确定见证，记录平方距离与见证坐标，可用于训练。
+  - `TRUNCATED_NO_WITNESS`：半径内既无已知异类格也无未知格，值为带符号阈值；
+    确定但无见证，不可用作训练目标。
+  - `UNDETERMINED`：半径内存在未知格，且它若取异类会带来更小距离、等距但
+    ID 更小的见证、或本来没有见证而能提供见证。`uncertainty` 给出具体原因。
+  - `NO_TARGET`：查询格本身未知，不产生距离目标。
+- **定位点**：`probe(y, x)` 按中心单元确定所属格与符号，距离与见证用定位点
+  自身的微米坐标，格点中心的见证不会整格共用。整数坐标用精确整数平方距离。
+- **量规**：`Gauge(spacing, radius)`，两轴间距独立，距离严格超过半径才截断。
+  `capture.field(calibration=...)` 可切到记录里的新量规；旧瓦片不能与新量规
+  拼在同一份距离场里由调用方显式选择。
+- **管权与缺口**：瓦片只在其来源的管辖范围内定义标志；越界重叠读回只作上下文，
+  `LabelMap.explain_cell` / `gap_report` 说明未回传格是否被上下文覆盖，但值仍为
+  未知，从不默认成背景。
+- **版本与回查**：`field.credentials` 是采用的瓦片 `(id, version)`；
+  `capture.field(selection=...)` 可按旧凭据重建；`field_version(field)` 给出包含
+  瓦片内容摘要的版本号。
+- **训练记录**：`training.record_probe` / `evaluate_probe` 生成绑定距离场版本的
+  记录；`verify_record` 拒绝量规不符、凭据或内容不符、以及不再可证实的记录。
+  `assemble_sample` 拒绝新旧量规混拼。`TrainingLedger` 登记签发、按影响域重发、
+  保留旧版并说明原因，支持按旧凭据回查（`records_with_credentials`）与追查
+  （`explain`）。
+- **工作区**：`SignedDistanceField(..., scratch_bytes=..., tile_shape=...)`
+  只在请求窗口加半径晕圈内逐块计算。未指定块形状时按预算自动选取；连最小块加
+  晕圈都放不下时直接报错，不会退回“整幅面 × 边缘候选”的分配。
+
+`python -m gauge_distance.cli data/capture.json` 打印窗口汇总，`--probes`、
+`--prior`、`--gauge-change`、`--reissue-prior` 分别查看定位记录、旧版本、新量规
+与重发报告。
